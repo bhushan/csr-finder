@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #f7f6f2;
+  --surface: #ffffff;
+  --ink: #1f2421;
+  --muted: #5f6b66;
+  --line: #e4e7e5;
+  --accent: #1d6b52;
+  --accent-soft: #e3f0ea;
+  --warm: #a4561b;
+  --warm-soft: #f7ebe0;
+  --policy: #3d5a80;
+  --policy-soft: #e6ecf4;
+  --danger: #a33a3a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141716;
+    --surface: #1b1f1d;
+    --ink: #e7ebe9;
+    --muted: #9aa6a0;
+    --line: #2b312e;
+    --accent: #5cc29b;
+    --accent-soft: #1d3029;
+    --warm: #e0a26b;
+    --warm-soft: #33261b;
+    --policy: #93b1d6;
+    --policy-soft: #1f2732;
+    --danger: #e08a8a;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-warm: var(--warm);
+  --color-warm-soft: var(--warm-soft);
+  --color-policy: var(--policy);
+  --color-policy-soft: var(--policy-soft);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
