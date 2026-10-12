@@ -97,6 +97,7 @@ export type Coverage = {
   alreadySeen: number;
   triaged: number;
   relevant: number;
+  relevantBySignal: Partial<Record<SignalType, number>>;
   clusters: number;
   distilled: number;
   model: string;

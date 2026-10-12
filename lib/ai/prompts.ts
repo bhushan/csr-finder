@@ -46,10 +46,12 @@ ${cluster.articles.map((a) => `- ${a.title} (${a.source}, ${a.publishedAt.slice(
 
 If tools are available, search the web to confirm what actually happened and find: the programme name, the CSR amount, where it runs, any implementation-partner call or deadline, and the CSR head / foundation contact named publicly.
 
-Then decide for the organisation: is this worth a call THIS WEEK?
-- call_this_week: active budget or partner search in our sectors, ideally in or near our geographies; a timely, specific reason to reach out now.
-- watch: relevant but not yet actionable (early signal, far geography, partners already chosen, policy to track).
-- skip: not useful for us after all.
+Then decide for the organisation: is this worth a call THIS WEEK? Timing is everything: a company that has just announced an education or skilling CSR move is actively allocating budget and is warm, even if this particular project already has a partner (pitch the next phase, a new location or a complementary programme).
+- call_this_week: (a) any explicit search for implementation partners / proposals in our sectors; or (b) a fresh education, skilling, digital literacy or youth employment CSR commitment by a company or foundation with operations or programmes in our tier 1 or tier 2 geographies, or a national programme that could expand there; or (c) a clear increase in CSR budget for our sectors.
+- watch: relevant but weaker timing or fit: far-away geography with no stated India-wide footprint, one-off infrastructure handovers, scholarships run in-house, policy changes to track.
+- skip: does not fit our sectors or work at all after reading the sources.
+Warmth guide: 85-100 open partner call in our geographies; 65-84 fresh commitment in our sectors and geographies; 40-64 relevant but elsewhere or partner already locked; below 40 weak.
+Only name a contact person if they are named in the sources or search results; otherwise name the team (e.g. "Infosys Foundation CSR team"). Refer to the organisation as "we/us", not by a person's name.
 
 Respond with ONLY a JSON object, no prose, with these keys:
 {

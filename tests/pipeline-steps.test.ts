@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { dedupeArticles, normalizeTitle, withinWindow } from "@/lib/pipeline/normalize";
-import { clusterArticles } from "@/lib/pipeline/cluster";
+import { clusterArticles, companyKey, mergeClusters, selectForAnalysis } from "@/lib/pipeline/cluster";
 import { geoTier, scoreItem } from "@/lib/pipeline/score";
 import { weekOf } from "@/lib/week";
 import { DEFAULT_SETTINGS } from "@/lib/settings";
-import type { Article, RawArticle, Triage } from "@/lib/types";
+import type { Article, Cluster, RawArticle, Triage } from "@/lib/types";
 
 const raw = (over: Partial<RawArticle>): RawArticle => ({
   title: "Infosys Foundation launches digital skilling programme in Pune",
@@ -141,5 +141,52 @@ describe("weekOf", () => {
     expect(weekOf(new Date("2026-10-11T20:00:00Z"))).toBe("2026-10-12");
     // Sunday 10:00 UTC = Sunday IST
     expect(weekOf(new Date("2026-10-11T10:00:00Z"))).toBe("2026-10-05");
+  });
+});
+
+describe("companyKey", () => {
+  it("ignores legal suffixes, spacing and acronym-style spacing", () => {
+    expect(companyKey("POWERGRID")).toBe(companyKey("Power Grid Corporation of India Limited"));
+    expect(companyKey("Genpact")).toBe(companyKey("Genpact India Pvt Ltd"));
+    expect(companyKey("Tata Motors")).not.toBe(companyKey("Tata Steel"));
+  });
+});
+
+describe("mergeClusters", () => {
+  const c = (key: string, company: string, over: Partial<Cluster> = {}): Cluster => ({
+    key, company, signalType: "new_initiative", sectors: ["Education"], geography: "India",
+    articles: [{ ...raw({ url: `https://e.com/${key}` }), id: key, queryIds: ["q"], providers: ["bing_news"] }],
+    ...over,
+  });
+
+  it("merges clusters for the same company and signal when geographies do not conflict", () => {
+    const merged = mergeClusters([
+      c("a", "POWERGRID", { geography: "Chandigarh" }),
+      c("b", "Power Grid Corporation of India", { geography: "Chandigarh, Punjab", sectors: ["Skill development"] }),
+      c("c", "Power Grid Corporation of India Limited", { geography: "" }),
+    ]);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].articles).toHaveLength(3);
+    expect(merged[0].sectors.sort()).toEqual(["Education", "Skill development"]);
+  });
+
+  it("keeps separate events by the same company in different places apart", () => {
+    const merged = mergeClusters([c("a", "Infosys", { geography: "Pune" }), c("b", "Infosys", { geography: "Mysuru, Karnataka" })]);
+    expect(merged).toHaveLength(2);
+  });
+
+  it("never merges clusters with no company", () => {
+    expect(mergeClusters([c("a", ""), c("b", "")])).toHaveLength(2);
+  });
+});
+
+describe("selectForAnalysis", () => {
+  const c = (key: string, signalType: Cluster["signalType"]): Cluster => ({
+    key, company: key, signalType, sectors: [], geography: "", articles: [],
+  });
+  it("keeps the given order but reserves slots for policy items", () => {
+    const list = [c("a", "partner_search"), c("b", "new_initiative"), c("c", "new_initiative"), c("p1", "policy_change"), c("p2", "policy_change")];
+    expect(selectForAnalysis(list, 3, 1).map((x) => x.key)).toEqual(["a", "b", "p1"]);
+    expect(selectForAnalysis(list, 10, 1)).toHaveLength(5);
   });
 });

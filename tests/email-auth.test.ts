@@ -39,7 +39,7 @@ const digest: Digest = {
   ],
   coverage: {
     queries: 16, feedRequests: 32, feedFailures: [], fetched: 300, inWindow: 200, unique: 150,
-    alreadySeen: 10, triaged: 140, relevant: 20, clusters: 12, distilled: 12, model: "gemini",
+    alreadySeen: 10, triaged: 140, relevant: 20, relevantBySignal: {}, clusters: 12, distilled: 12, model: "gemini",
     windowStart: "2026-10-05T02:00:00Z", windowEnd: "2026-10-12T02:00:00Z",
   },
 };

@@ -88,6 +88,12 @@ describe("distill", () => {
     expect(grounding).toHaveLength(1);
   });
 
+  it("counts url-context retrievals as verification", async () => {
+    const generate = vi.fn<Generate>(async () => ({ text: JSON.stringify(good), grounding: [{ title: "mint.com", url: "https://mint.com/a" }] }));
+    const { distilled } = await createDigestAI(generate, "gemini-test").distill(cluster, DEFAULT_SETTINGS);
+    expect(distilled.verified).toBe(true);
+  });
+
   it("clamps warmth and retries once without tools when the grounded call fails", async () => {
     const generate = vi
       .fn<Generate>()

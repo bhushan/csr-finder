@@ -201,6 +201,14 @@ export function createDigestAI(
   };
 }
 
+const hostOf = (url: string) => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "source";
+  }
+};
+
 /** Real Gemini Flash client. Every AI task in the app goes through here. */
 export function createGeminiGenerate(apiKey: string, model: string): Generate {
   const ai = new GoogleGenAI({ apiKey });
@@ -218,10 +226,12 @@ export function createGeminiGenerate(apiKey: string, model: string): Generate {
         abortSignal: AbortSignal.timeout(90_000),
       },
     });
-    const chunks = res.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
-    const grounding = chunks
-      .map((c) => ({ title: c.web?.title ?? "", url: c.web?.uri ?? "" }))
-      .filter((g) => g.url);
+    const candidate = res.candidates?.[0];
+    const searched = (candidate?.groundingMetadata?.groundingChunks ?? []).map((c) => ({ title: c.web?.title ?? "", url: c.web?.uri ?? "" }));
+    const read = (candidate?.urlContextMetadata?.urlMetadata ?? [])
+      .filter((m) => String(m.urlRetrievalStatus ?? "").includes("SUCCESS"))
+      .map((m) => ({ title: hostOf(m.retrievedUrl ?? ""), url: m.retrievedUrl ?? "" }));
+    const grounding = [...read, ...searched].filter((g, i, all) => g.url && all.findIndex((x) => x.url === g.url) === i);
     return { text: res.text ?? "", grounding };
   };
 }

@@ -83,6 +83,7 @@ describe("runDigest", () => {
     expect(c.alreadySeen).toBe(1);
     expect(c.relevant).toBe(2);
     expect(c.distilled).toBe(2);
+    expect(c.relevantBySignal).toEqual({ partner_search: 1, new_initiative: 1 });
     expect(progress).toHaveBeenCalled();
   });
 

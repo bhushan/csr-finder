@@ -1,5 +1,5 @@
 import { groupItems, SIGNAL_LABEL } from "@/lib/digest-view";
-import type { Digest, DigestItem } from "@/lib/types";
+import type { Digest, DigestItem, SignalType } from "@/lib/types";
 import { formatWeek } from "@/lib/week";
 
 const dateFmt = (iso: string) =>
@@ -158,8 +158,13 @@ export function DigestView({ digest }: { digest: Digest }) {
           <li>{c.feedRequests} feed requests to Google News and Bing News{c.feedFailures.length ? `, ${c.feedFailures.length} failed and were skipped` : ", all succeeded"}</li>
           <li>{c.fetched} articles fetched, {c.inWindow} from {dateFmt(c.windowStart)} to {dateFmt(c.windowEnd)}, {c.unique} unique after de-duplication</li>
           <li>{c.alreadySeen} already covered in an earlier digest</li>
-          <li>{c.triaged} screened by {c.model}; {c.relevant} relevant, grouped into {c.clusters} developments</li>
-          <li>{c.distilled} analysed in depth</li>
+          <li>
+            {c.triaged} screened by {c.model}; {c.relevant} relevant
+            {c.relevantBySignal && Object.keys(c.relevantBySignal).length > 0 &&
+              ` (${Object.entries(c.relevantBySignal).map(([k, n]) => `${n} ${SIGNAL_LABEL[k as SignalType].toLowerCase()}`).join(", ")})`}
+            , grouped into {c.clusters} developments
+          </li>
+          <li>{c.distilled} analysed in depth{c.clusters > c.distilled ? ` (the top ${c.distilled} by priority; raise the limit in Settings to see more)` : ""}</li>
         </ol>
       </details>
     </div>

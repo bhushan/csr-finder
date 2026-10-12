@@ -46,3 +46,58 @@ export function clusterArticles(articles: Article[], triage: Triage[], excludedC
 
   return [...clusters.values()];
 }
+
+const COMPANY_NOISE = new Set([
+  "ltd", "limited", "pvt", "private", "corporation", "corp", "of", "india", "the", "inc", "co", "company", "plc", "llp", "and",
+]);
+
+/** Comparable company identity: "Power Grid Corporation of India Ltd" and "POWERGRID" both become "powergrid". */
+export function companyKey(company: string) {
+  return normalizeTitle(company)
+    .split(" ")
+    .filter((w) => w && !COMPANY_NOISE.has(w))
+    .join("");
+}
+
+const NATIONAL = /\b(india|pan|national|nationwide|multiple|various)\b/;
+
+function geographiesConflict(a: string, b: string) {
+  const na = normalizeTitle(a);
+  const nb = normalizeTitle(b);
+  if (!na || !nb || NATIONAL.test(na) || NATIONAL.test(nb)) return false;
+  const ta = new Set(na.split(" ").filter((w) => w.length > 2));
+  return !nb.split(" ").some((w) => ta.has(w));
+}
+
+/**
+ * Gemini assigns story keys per triage batch, so one event can arrive as several clusters.
+ * Merge same company + same signal unless they clearly happened in different places.
+ */
+export function mergeClusters(clusters: Cluster[]): Cluster[] {
+  const out: Cluster[] = [];
+  for (const c of clusters) {
+    const key = companyKey(c.company);
+    const target = key
+      ? out.find((o) => companyKey(o.company) === key && o.signalType === c.signalType && !geographiesConflict(o.geography, c.geography))
+      : undefined;
+    if (!target) {
+      out.push({ ...c, articles: [...c.articles], sectors: [...c.sectors] });
+      continue;
+    }
+    target.articles.push(...c.articles);
+    target.sectors = [...new Set([...target.sectors, ...c.sectors])];
+    if (c.geography.length > target.geography.length && !NATIONAL.test(normalizeTitle(c.geography))) target.geography = c.geography;
+  }
+  return out;
+}
+
+/** Take the top `limit` clusters in order, but guarantee up to `policySlots` policy items make the cut. */
+export function selectForAnalysis(clusters: Cluster[], limit: number, policySlots: number): Cluster[] {
+  const policy = clusters.filter((c) => c.signalType === "policy_change").slice(0, policySlots);
+  const chosen = new Set(policy);
+  for (const c of clusters) {
+    if (chosen.size >= limit) break;
+    chosen.add(c);
+  }
+  return clusters.filter((c) => chosen.has(c));
+}

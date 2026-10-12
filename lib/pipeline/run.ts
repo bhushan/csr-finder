@@ -5,7 +5,7 @@ import { bingNewsUrl, googleNewsUrl, parseBingNews, parseGoogleNews } from "@/li
 import { buildQueries } from "@/lib/sources/queries";
 import type { Cluster, Coverage, Digest, DigestItem, ProgressFn, Provider, RawArticle } from "@/lib/types";
 import { weekOf as weekOfDate } from "@/lib/week";
-import { clusterArticles, SIGNAL_PRIORITY } from "./cluster";
+import { clusterArticles, mergeClusters, selectForAnalysis, SIGNAL_PRIORITY } from "./cluster";
 import { dedupeArticles, withinWindow } from "./normalize";
 import { geoTier, scoreItem } from "./score";
 
@@ -78,11 +78,14 @@ export async function runDigest(deps: RunDeps): Promise<Digest> {
   // 3. Triage with Gemini
   const triage = fresh.length ? (await progress("triage", 30, `Gemini is screening ${fresh.length} articles`), await ai.triage(fresh, settings)) : [];
   const relevantCount = triage.filter((t) => t.relevant).length;
+  const relevantBySignal: Coverage["relevantBySignal"] = {};
+  for (const t of triage) if (t.relevant) relevantBySignal[t.signalType] = (relevantBySignal[t.signalType] ?? 0) + 1;
 
   // 4. Cluster same-story coverage, keep the most promising for deep analysis
-  const clusters = clusterArticles(fresh, triage, settings.excludedCompanies)
-    .sort((a, b) => clusterPriority(b, settings) - clusterPriority(a, settings))
-    .slice(0, settings.maxItems);
+  const allClusters = mergeClusters(clusterArticles(fresh, triage, settings.excludedCompanies)).sort(
+    (a, b) => clusterPriority(b, settings) - clusterPriority(a, settings),
+  );
+  const clusters = selectForAnalysis(allClusters, settings.maxItems, 3);
 
   // 5. Distill each development into a call / watch / skip decision
   let done = 0;
@@ -137,7 +140,8 @@ export async function runDigest(deps: RunDeps): Promise<Digest> {
       alreadySeen: unique.length - unseenUrls.size,
       triaged: fresh.length,
       relevant: relevantCount,
-      clusters: clusters.length,
+      relevantBySignal,
+      clusters: allClusters.length,
       distilled: items.length,
       model: ai.model,
       windowStart: new Date(now.getTime() - settings.lookbackDays * 86_400_000).toISOString(),
