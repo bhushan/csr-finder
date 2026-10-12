@@ -43,3 +43,18 @@ export const seenArticles = pgTable("seen_articles", {
   urlHash: text("url_hash").primaryKey(),
   weekOf: text("week_of").notNull(),
 });
+
+/** Outreach state per digest item (item ids are stable article hashes). */
+export const leads = pgTable(
+  "leads",
+  {
+    itemId: text("item_id").primaryKey(),
+    digestId: text("digest_id").notNull(),
+    company: text("company").notNull().default(""),
+    status: text("status").notNull().default("new"),
+    note: text("note").notNull().default(""),
+    draft: jsonb("draft").$type<{ subject: string; body: string; createdAt: string } | null>(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("leads_status_idx").on(t.status)],
+);

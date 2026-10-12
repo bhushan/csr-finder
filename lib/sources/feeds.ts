@@ -8,6 +8,14 @@ export function googleNewsUrl(query: string, days: number) {
   return `https://news.google.com/rss/search?${params}`;
 }
 
+const day = (d: Date, offset: number) => new Date(d.getTime() + offset * 86_400_000).toISOString().slice(0, 10);
+
+/** Dated search for backfilling a past week (Google's after/before are exclusive, so pad by a day). */
+export function googleNewsRangeUrl(query: string, start: Date, end: Date) {
+  const params = new URLSearchParams({ q: `${query} after:${day(start, -1)} before:${day(end, 1)}`, hl: "en-IN", gl: "IN", ceid: "IN:en" });
+  return `https://news.google.com/rss/search?${params}`;
+}
+
 export function bingNewsUrl(query: string) {
   // qft interval 8 = past week; mkt pins the India edition.
   const params = new URLSearchParams({ q: query, format: "rss", qft: 'interval="8"', mkt: "en-IN" });

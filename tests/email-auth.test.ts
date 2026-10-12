@@ -22,6 +22,9 @@ const item = (over: Partial<DigestItem>): DigestItem => ({
   score: 95,
   sources: [{ title: "Mint story", url: "https://mint.com/a", source: "Mint", publishedAt: "2026-10-09T00:00:00Z" }],
   groundingSources: [],
+  trackRecord: "Rs 200 cr CSR in FY25",
+  companyKey: "wipro",
+  history: [],
   ...over,
 });
 

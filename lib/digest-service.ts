@@ -36,6 +36,7 @@ export async function executeRun(runId: string, opts: { sendEmail?: boolean } = 
       fetchText,
       ai: defaultDigestAI(),
       filterUnseen: (urls) => repo.filterUnseen(urls, week),
+      companyHistory: repo.companyHistory,
       onProgress: (step, progress, message) => repo.updateRun(runId, { step, progress, message }, { step, message }),
     });
 
@@ -61,4 +62,25 @@ export async function executeRun(runId: string, opts: { sendEmail?: boolean } = 
     await repo.updateRun(runId, { status: "failed", error: message, message: `Run failed: ${message}`, finishedAt: new Date() }, { step: "error", message });
     return null;
   }
+}
+
+/** Generate a past week's digest from dated searches (no email). Run weeks oldest-first. */
+export async function backfillWeek(mondayIst: Date, onLog: (msg: string) => void = console.log) {
+  const settings = await repo.getSettings();
+  // 07:30 IST on that Monday, the same moment the cron would have fired
+  const now = new Date(mondayIst.getTime() + 2 * 60 * 60 * 1000);
+  const week = weekOf(now);
+  const digest = await runDigest({
+    settings,
+    now,
+    historical: true,
+    fetchText,
+    ai: defaultDigestAI(),
+    filterUnseen: (urls) => repo.filterUnseen(urls, week),
+    companyHistory: repo.companyHistory,
+    onProgress: (step, pct, message) => onLog(`[${week} ${pct}%] ${step}: ${message}`),
+  });
+  await repo.saveDigest(digest);
+  await repo.markSeen(digest.items.flatMap((i) => i.sources.map((s) => s.url)), week);
+  return digest;
 }

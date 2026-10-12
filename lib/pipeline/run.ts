@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { DigestAI } from "@/lib/ai/gemini";
 import type { Settings } from "@/lib/settings";
-import { bingNewsUrl, googleNewsUrl, parseBingNews, parseGoogleNews } from "@/lib/sources/feeds";
+import { bingNewsUrl, googleNewsRangeUrl, googleNewsUrl, parseBingNews, parseGoogleNews } from "@/lib/sources/feeds";
 import { buildQueries } from "@/lib/sources/queries";
-import type { Cluster, Coverage, Digest, DigestItem, ProgressFn, Provider, RawArticle } from "@/lib/types";
+import type { Cluster, Coverage, Digest, DigestItem, HistoryEntry, ProgressFn, Provider, RawArticle } from "@/lib/types";
 import { weekOf as weekOfDate } from "@/lib/week";
-import { clusterArticles, mergeClusters, selectForAnalysis, SIGNAL_PRIORITY } from "./cluster";
+import { clusterArticles, companyKey, mergeClusters, selectForAnalysis, SIGNAL_PRIORITY } from "./cluster";
 import { dedupeArticles, withinWindow } from "./normalize";
 import { geoTier, scoreItem } from "./score";
 
@@ -17,6 +17,10 @@ export type RunDeps = {
   /** Return only the urls that did not appear in an earlier week's digest. */
   filterUnseen: (urls: string[]) => Promise<string[]>;
   onProgress?: ProgressFn;
+  /** Earlier digest appearances per company key, for the "warming up" signal. */
+  companyHistory?: (keys: string[]) => Promise<Record<string, HistoryEntry[]>>;
+  /** Backfill a past week: dated Google News searches only (Bing has no date filter). */
+  historical?: boolean;
 };
 
 const MAX_TRIAGE = 240;
@@ -48,11 +52,14 @@ export async function runDigest(deps: RunDeps): Promise<Digest> {
 
   // 1. Collect from live feeds
   const queries = buildQueries(settings);
-  await progress("collect", 5, `Searching ${queries.length} queries across Google News and Bing News`);
-  const requests = queries.flatMap((q) => [
-    { q, provider: "google_news" as Provider, url: googleNewsUrl(q.text, settings.lookbackDays) },
-    { q, provider: "bing_news" as Provider, url: bingNewsUrl(q.text) },
-  ]);
+  await progress("collect", 5, `Searching ${queries.length} queries across ${deps.historical ? "Google News (dated)" : "Google News and Bing News"}`);
+  const windowStart = new Date(now.getTime() - settings.lookbackDays * 86_400_000);
+  const requests = deps.historical
+    ? queries.map((q) => ({ q, provider: "google_news" as Provider, url: googleNewsRangeUrl(q.text, windowStart, now) }))
+    : queries.flatMap((q) => [
+        { q, provider: "google_news" as Provider, url: googleNewsUrl(q.text, settings.lookbackDays) },
+        { q, provider: "bing_news" as Provider, url: bingNewsUrl(q.text) },
+      ]);
   const failures: Coverage["feedFailures"] = [];
   const fetched = await mapLimit(requests, 8, async ({ q, provider, url }) => {
     try {
@@ -91,7 +98,7 @@ export async function runDigest(deps: RunDeps): Promise<Digest> {
   let done = 0;
   if (clusters.length) await progress("distill", 45, `Analysing ${clusters.length} developments with web verification`);
   const items: DigestItem[] = await mapLimit(clusters, 4, async (cluster) => {
-    const { distilled, grounding } = await ai.distill(cluster, settings);
+    const { distilled, grounding } = await ai.distill(cluster, settings, now);
     done++;
     await progress("distill", 45 + Math.round((done / clusters.length) * 40), `Analysed ${done} of ${clusters.length}: ${cluster.company || distilled.headline}`);
     const tier = geoTier(cluster.geography, settings.geographies);
@@ -106,8 +113,15 @@ export async function runDigest(deps: RunDeps): Promise<Digest> {
       score: scoreItem({ warmth: distilled.warmth, decision: distilled.decision, signalType: cluster.signalType, geoTier: tier, sourceCount: cluster.articles.length }),
       sources: cluster.articles.map((a) => ({ title: a.title, url: a.url, source: a.source, publishedAt: a.publishedAt })),
       groundingSources: grounding.slice(0, 5),
+      companyKey: companyKey(cluster.company),
+      history: [],
     };
   });
+  if (deps.companyHistory && items.length) {
+    const keys = [...new Set(items.map((i) => i.companyKey).filter(Boolean))];
+    const history = keys.length ? await deps.companyHistory(keys) : {};
+    for (const item of items) item.history = (history[item.companyKey] ?? []).filter((h) => h.weekOf < week);
+  }
   items.sort((a, b) => b.score - a.score);
 
   // 6. Executive summary
@@ -144,8 +158,9 @@ export async function runDigest(deps: RunDeps): Promise<Digest> {
       clusters: allClusters.length,
       distilled: items.length,
       model: ai.model,
-      windowStart: new Date(now.getTime() - settings.lookbackDays * 86_400_000).toISOString(),
+      windowStart: windowStart.toISOString(),
       windowEnd: now.toISOString(),
     },
+    ...(deps.historical ? { backfilled: true } : {}),
   };
 }
