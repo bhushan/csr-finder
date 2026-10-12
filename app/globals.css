@@ -78,13 +78,13 @@ dialog::backdrop {
   to { transform: rotate(360deg); }
 }
 
-@keyframes fill-in {
-  from { transform: scaleX(0); }
-  to { transform: scaleX(1); }
-}
+/* Pre-hide animated elements until GSAP takes over; a timed fallback reveals them if JS never runs. */
+@keyframes reveal-fallback { to { visibility: visible; transform: none; } }
+.motion [data-anim] { visibility: hidden; animation: reveal-fallback 0s 2.5s forwards; }
+.motion [data-bar] { transform: scaleX(0); animation: reveal-fallback 0s 2.5s forwards; }
+[data-bar] { transform-origin: left center; }
 
 .radar-sweep { transform-origin: 50% 50%; animation: sweep 1.4s cubic-bezier(0.3, 0.6, 0.2, 1) 1 both; }
-.bar-in { transform-origin: left; animation: fill-in 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
