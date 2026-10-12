@@ -1,5 +1,7 @@
 # CSR Partnership Radar
 
+**Live:** https://csr-finder.vercel.app · **Components Map:** [COMPONENTS.md](./COMPONENTS.md) (also at [/how-it-works](https://csr-finder.vercel.app/how-it-works))
+
 AI-powered weekly CSR intelligence digest for an education and skilling NGO (MESA C4, Problem Statement 9).
 Every Monday at 07:30 IST it scans the last seven days of Indian news for companies announcing CSR initiatives,
 signalling bigger CSR allocations, explicitly seeking NGO implementation partners, and policy changes affecting
@@ -9,8 +11,6 @@ CSR spend, then distils each into one decision: **is this worth a call this week
 - **AI:** Gemini Flash only (`@google/genai`), for triage, analysis and the weekly summary.
 - **Delivery:** email via Resend, and a public web view with archive.
 - **Configurable:** sectors and keywords, geography tiers, recipients, excluded companies, NGO profile.
-
-See [COMPONENTS.md](./COMPONENTS.md) for the Components Map (also rendered at `/how-it-works`).
 
 ## Run locally
 
