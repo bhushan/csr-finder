@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { latestDigest } from "@/lib/repo";
 import { groupItems } from "@/lib/digest-view";
+import { FunnelChart } from "@/components/motion/FunnelChart";
 
 export const metadata: Metadata = { title: "How it works" };
 
@@ -17,26 +18,7 @@ async function Funnel() {
     { n: c.distilled, label: "developments analysed and verified" },
     { n: calls, label: "worth a call this week" },
   ];
-  const max = Math.max(steps[0].n, 1);
-  return (
-    <figure className="mt-10 rounded-2xl border border-line bg-surface p-5 shadow-card sm:p-6">
-      <figcaption className="text-[15px] font-semibold">The latest run, from raw news to a call list</figcaption>
-      <ol className="mt-5 space-y-3">
-        {steps.map((s, i) => (
-          <li key={s.label} className="grid grid-cols-[4rem_1fr] items-center gap-4 sm:grid-cols-[4.5rem_1fr_16rem]">
-            <span className="text-right text-[22px] font-semibold tracking-tight">{s.n}</span>
-            <span className="h-2.5 overflow-hidden rounded-full bg-line">
-              <span
-                className={`bar-in block h-full rounded-full ${i === steps.length - 1 ? "bg-hot" : "bg-cold"}`}
-                style={{ width: `${Math.max((s.n / max) * 100, 1.5)}%`, animationDelay: `${i * 90}ms` }}
-              />
-            </span>
-            <span className="col-start-2 text-[13px] text-muted sm:col-start-auto">{s.label}</span>
-          </li>
-        ))}
-      </ol>
-    </figure>
-  );
+  return <FunnelChart steps={steps} />;
 }
 
 const stages = [

@@ -1,7 +1,10 @@
 "use client";
 
+import gsap from "gsap";
 import Link from "next/link";
-import { useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { SmoothDetails } from "@/components/motion/SmoothDetails";
+import { prefersReducedMotion } from "@/lib/motion";
 import { groupItems, SIGNAL_LABEL } from "@/lib/digest-view";
 import { LEAD_LABEL, LEAD_STATUSES, type Lead, type LeadStatus } from "@/lib/leads";
 import type { DigestItem, SignalType } from "@/lib/types";
@@ -113,8 +116,21 @@ function Body({ item }: { item: DigestItem }) {
 
 function Actions({
   lead, admin, onStatus, onDraft,
-}: { lead?: Lead; admin: boolean; onStatus: (s: LeadStatus) => void; onDraft: () => void }) {
+}: { lead?: Lead; admin: boolean; onStatus: (s: LeadStatus) => Promise<boolean>; onDraft: () => void }) {
   const status = lead?.status ?? "new";
+  const saved = useRef<HTMLSpanElement>(null);
+  const select = useRef<HTMLSelectElement>(null);
+
+  async function change(next: LeadStatus) {
+    const ok = await onStatus(next);
+    if (!ok || prefersReducedMotion()) return;
+    gsap.fromTo(select.current, { scale: 0.96 }, { scale: 1, duration: 0.35, ease: "back.out(3)" });
+    gsap
+      .timeline()
+      .fromTo(saved.current, { autoAlpha: 0, x: -4 }, { autoAlpha: 1, x: 0, duration: 0.2, ease: "power2.out" })
+      .to(saved.current, { autoAlpha: 0, duration: 0.3, delay: 1.4 });
+  }
+
   if (!admin) {
     return status !== "new" ? <p className={`mt-5 text-sm font-medium ${STATUS_STYLE[status]}`}>{LEAD_LABEL[status]}</p> : null;
   }
@@ -123,8 +139,9 @@ function Actions({
       <label className="flex items-center gap-2 text-sm">
         <span className="text-muted">Status</span>
         <select
+          ref={select}
           value={status}
-          onChange={(e) => onStatus(e.target.value as LeadStatus)}
+          onChange={(e) => change(e.target.value as LeadStatus)}
           className={`rounded-lg border border-line bg-surface px-2.5 py-1.5 text-sm font-medium ${STATUS_STYLE[status]}`}
         >
           {LEAD_STATUSES.map((s) => (
@@ -132,6 +149,7 @@ function Actions({
           ))}
         </select>
       </label>
+      <span ref={saved} className="invisible text-sm text-ok" aria-live="polite">Saved</span>
       <button onClick={onDraft} className="rounded-lg bg-brand px-3.5 py-1.5 text-sm font-medium text-brand-ink transition-opacity hover:opacity-90">
         {lead?.draft ? "Open draft email" : "Draft outreach email"}
       </button>
@@ -179,6 +197,31 @@ export function LeadBoard({ digestId, items, initialLeads, admin }: { digestId: 
   const sectors = [...new Set(current.items.flatMap((i) => i.sectors))].sort();
   const visible = sector ? current.items.filter((i) => i.sectors.includes(sector)) : current.items;
 
+  const panel = useRef<HTMLDivElement>(null);
+  const firstRender = useRef(true);
+  useLayoutEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    if (prefersReducedMotion() || !panel.current) return;
+    gsap.fromTo(panel.current.children, { autoAlpha: 0, y: 10 }, { autoAlpha: 1, y: 0, duration: 0.32, stagger: 0.035, ease: "power2.out", clearProps: "transform" });
+  }, [tab, sector]);
+
+  function showDialog() {
+    const d = dialog.current;
+    if (!d) return;
+    if (!d.open) d.showModal();
+    if (!prefersReducedMotion()) gsap.fromTo(d, { autoAlpha: 0, y: 18, scale: 0.98 }, { autoAlpha: 1, y: 0, scale: 1, duration: 0.32, ease: "power3.out" });
+  }
+
+  function closeDialog() {
+    const d = dialog.current;
+    if (!d) return;
+    if (prefersReducedMotion()) return d.close();
+    gsap.to(d, { autoAlpha: 0, y: 10, scale: 0.98, duration: 0.18, ease: "power2.in", onComplete: () => d.close() });
+  }
+
   async function setStatus(item: DigestItem, status: LeadStatus) {
     const prev = leads[item.id];
     setLeads({ ...leads, [item.id]: { ...(prev ?? { itemId: item.id, digestId, company: item.company, note: "", draft: null, updatedAt: "" }), status } });
@@ -191,6 +234,7 @@ export function LeadBoard({ digestId, items, initialLeads, admin }: { digestId: 
       setLeads((l) => ({ ...l, [item.id]: prev }));
       setError("That status change didn't save. Your session may have expired; sign in on Settings and try again.");
     }
+    return res.ok;
   }
 
   async function openDraft(item: DigestItem, regenerate = false) {
@@ -204,7 +248,7 @@ export function LeadBoard({ digestId, items, initialLeads, admin }: { digestId: 
       setDraft(null);
       setDrafting(true);
     }
-    if (!dialog.current?.open) dialog.current?.showModal();
+    showDialog();
     if (cached && !regenerate) return;
     try {
       const res = await fetch(`/api/leads/${item.id}/draft`, {
@@ -215,6 +259,7 @@ export function LeadBoard({ digestId, items, initialLeads, admin }: { digestId: 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setDraft({ subject: data.subject, body: data.body });
+      if (!prefersReducedMotion()) requestAnimationFrame(() => gsap.fromTo("[data-draft]", { autoAlpha: 0, y: 6 }, { autoAlpha: 1, y: 0, duration: 0.35, stagger: 0.08 }));
       setLeads((l) => ({ ...l, [item.id]: { ...(l[item.id] ?? { itemId: item.id, digestId, company: item.company, status: "new", note: "", updatedAt: "" }), draft: data } }));
     } catch (err) {
       setError((err as Error).message || "Gemini couldn't draft this one right now. Try again in a moment.");
@@ -267,7 +312,7 @@ export function LeadBoard({ digestId, items, initialLeads, admin }: { digestId: 
 
       {error && <p role="alert" className="mt-4 rounded-lg bg-hot-soft px-4 py-3 text-sm text-hot">{error}</p>}
 
-      <div className="mt-6 space-y-4" role="tabpanel">
+      <div ref={panel} className="mt-6 space-y-4" role="tabpanel">
         {visible.length === 0 && (
           <p className="rounded-2xl border border-dashed border-line-strong px-6 py-10 text-center text-muted">
             {tab === "calls"
@@ -296,12 +341,12 @@ export function LeadBoard({ digestId, items, initialLeads, admin }: { digestId: 
           visible.map((item) => {
             const t = TEMP_CLASS[tempOf(item.warmth)];
             return (
-              <details
+              <SmoothDetails
                 key={item.id}
                 id={`lead-${item.id}`}
-                className={`group scroll-mt-20 rounded-xl border border-line bg-surface ${item.signalType === "policy_change" ? "border-l-[3px] border-l-policy" : ""}`}
-              >
-                <summary className="flex cursor-pointer list-none items-start gap-4 px-5 py-4">
+                className={`group scroll-mt-24 rounded-xl border border-line bg-surface ${item.signalType === "policy_change" ? "border-l-[3px] border-l-policy" : ""}`}
+                summaryClassName="flex cursor-pointer list-none items-start gap-4 px-5 py-4"
+                summary={<>
                   <span className={`mt-0.5 w-8 shrink-0 text-right text-[15px] font-semibold tabular-nums ${t.text}`} title="Warmth">{item.warmth}</span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-[13px] text-muted">
@@ -313,13 +358,14 @@ export function LeadBoard({ digestId, items, initialLeads, admin }: { digestId: 
                   <span aria-hidden className="mt-1 text-muted transition-transform group-open:rotate-180">
                     <svg width="14" height="14" viewBox="0 0 14 14"><path d="M3 5l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                   </span>
-                </summary>
-                <div className="border-t border-line px-5 pb-5 pt-4 sm:pl-[4.25rem]">
+                </>}
+              >
+<div className="border-t border-line px-5 pb-5 pt-4 sm:pl-[4.25rem]">
                   <Meta item={item} />
                   <Body item={item} />
                   <Actions lead={leads[item.id]} admin={admin} onStatus={(s) => setStatus(item, s)} onDraft={() => openDraft(item)} />
                 </div>
-              </details>
+              </SmoothDetails>
             );
           })}
       </div>
@@ -336,7 +382,7 @@ export function LeadBoard({ digestId, items, initialLeads, admin }: { digestId: 
                 <h2 className="text-lg font-semibold">Outreach email to {draftFor.company}</h2>
                 <p className="mt-1 text-sm text-muted">Drafted by Gemini from this lead and your profile. Fill the [placeholders] before sending.</p>
               </div>
-              <button onClick={() => dialog.current?.close()} className="rounded-md px-2 py-1 text-muted hover:bg-bg hover:text-ink" aria-label="Close">
+              <button onClick={closeDialog} className="rounded-md px-2 py-1 text-muted hover:bg-bg hover:text-ink" aria-label="Close">
                 Close
               </button>
             </div>
@@ -349,11 +395,11 @@ export function LeadBoard({ digestId, items, initialLeads, admin }: { digestId: 
             )}
             {draft && !drafting && (
               <div className="mt-5 space-y-3">
-                <label className="block text-sm">
+                <label data-draft className="block text-sm">
                   <span className="text-muted">Subject</span>
                   <input value={draft.subject} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} className="mt-1 w-full rounded-lg border border-line bg-raised px-3 py-2 font-medium" />
                 </label>
-                <label className="block text-sm">
+                <label data-draft className="block text-sm">
                   <span className="text-muted">Message</span>
                   <textarea value={draft.body} onChange={(e) => setDraft({ ...draft, body: e.target.value })} rows={12} className="mt-1 w-full rounded-lg border border-line bg-raised px-3 py-2 leading-relaxed" />
                 </label>
