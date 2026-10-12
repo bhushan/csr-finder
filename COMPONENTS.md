@@ -23,9 +23,13 @@ flowchart TD
   C --> D["Gemini Flash + Google Search:<br/>distill, decide call / watch / skip,<br/>warmth, opening angle"]
   D --> S["Deterministic ranking<br/>lib/pipeline/score.ts"]
   S --> SUM["Gemini Flash: Monday summary"]
-  SUM --> DB[("Neon Postgres<br/>digests, runs, seen_articles")]
+  DB2[("Earlier digests")] -->|"warming-up history"| S
+  SUM --> DB[("Neon Postgres<br/>digests, runs, seen_articles, leads")]
   SUM --> MAIL["Resend email"]
-  DB --> WEB["Web app: This week,<br/>Archive, How it works"]
+  DB --> WEB["Web app: briefing + call sheet,<br/>Pipeline, Archive, How it works"]
+  WEB -->|"Draft outreach email"| DRAFT["Gemini Flash: outreach draft"]
+  WEB -->|"Lead status"| DB
+  BACK["Backfill script<br/>dated Google News searches"] --> Q
 ```
 
 ## Components
@@ -45,7 +49,12 @@ flowchart TD
 | 11 | AI summary | Monday headline + who to call first | `lib/ai/gemini.ts` | **Gemini Flash** |
 | 12 | Storage | Settings, digests (JSONB), runs with logs, seen articles | `lib/db/schema.ts`, `lib/repo.ts` | Neon Postgres (Vercel Marketplace) |
 | 13 | Email delivery | HTML + text digest to recipients | `lib/email/render.ts`, `lib/email/send.ts` | Resend (Vercel Marketplace) |
-| 14 | Web app | Latest digest, archive, coverage panel, how it works | `app/`, `components/DigestView.tsx` | Vercel |
+| 14 | Web app | Briefing with call sheet, tabs, sector filters, coverage, archive, how it works | `app/`, `components/Briefing.tsx`, `components/LeadBoard.tsx` | Vercel |
+| 15 | Warming-up signal | Flags companies seen in earlier weeks' digests | `lib/repo.ts` (`companyHistory`), `lib/pipeline/run.ts` | Neon Postgres |
+| 16 | CSR track record | Company's past CSR spend and education history, found during grounded analysis | `lib/ai/prompts.ts` | **Gemini Flash** + Google Search |
+| 17 | Outreach pipeline | Lead status per item (to call, contacted, meeting, not a fit) across weeks | `app/pipeline`, `app/api/leads`, `lib/leads.ts` | Neon Postgres |
+| 18 | Outreach drafts | First email per lead from its angle, contact and the NGO profile; cached | `app/api/leads/[itemId]/draft` | **Gemini Flash** |
+| 19 | Backfill | Rebuilds past weeks from dated Google News searches (labelled in the UI) | `scripts/backfill.ts`, `lib/digest-service.ts` | Google News RSS |
 
 ## Reliability and honesty
 

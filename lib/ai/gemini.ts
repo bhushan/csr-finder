@@ -2,7 +2,7 @@ import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { z } from "zod";
 import type { Settings } from "@/lib/settings";
 import { DECISIONS, SIGNAL_TYPES, type Article, type Cluster, type Distilled, type DigestItem, type DigestSummary, type Triage } from "@/lib/types";
-import { distillPrompt, summaryPrompt, SYSTEM, triagePrompt } from "./prompts";
+import { distillPrompt, draftPrompt, summaryPrompt, SYSTEM, triagePrompt } from "./prompts";
 
 export type GenerateRequest = {
   prompt: string;
@@ -14,10 +14,13 @@ export type GenerateRequest = {
 export type GenerateResult = { text: string; grounding: { title: string; url: string }[] };
 export type Generate = (req: GenerateRequest) => Promise<GenerateResult>;
 
+export type DraftInput = Pick<DigestItem, "company" | "headline" | "whatHappened" | "whyItMatters" | "suggestedAngle" | "contactHint" | "trackRecord">;
+
 export interface DigestAI {
   model: string;
   triage(articles: Article[], settings: Settings): Promise<Triage[]>;
-  distill(cluster: Cluster, settings: Settings): Promise<{ distilled: Distilled; grounding: GenerateResult["grounding"] }>;
+  distill(cluster: Cluster, settings: Settings, asOf: Date): Promise<{ distilled: Distilled; grounding: GenerateResult["grounding"] }>;
+  draftEmail(lead: DraftInput, settings: Settings): Promise<{ subject: string; body: string }>;
   summarize(items: DigestItem[], settings: Settings, weekOf: string): Promise<DigestSummary>;
 }
 
@@ -41,7 +44,10 @@ const DistilledResponse = z.object({
   suggestedAngle: z.string().catch(""),
   contactHint: z.string().catch(""),
   amount: z.string().catch(""),
+  trackRecord: z.string().catch(""),
 });
+
+const DraftResponse = z.object({ subject: z.string().min(1), body: z.string().min(1) });
 
 const SummaryResponse = z.object({ headline: z.string(), bullets: z.array(z.string()).min(1) });
 
@@ -72,8 +78,10 @@ const DISTILL_SCHEMA = jsonSchema(
     suggestedAngle: z.string(),
     contactHint: z.string(),
     amount: z.string(),
+    trackRecord: z.string(),
   }),
 );
+const DRAFT_SCHEMA = jsonSchema(DraftResponse);
 const SUMMARY_SCHEMA = jsonSchema(SummaryResponse);
 
 /** Models sometimes wrap JSON in fences or prose when tools are on; take the outermost object. */
@@ -151,8 +159,8 @@ export function createDigestAI(
       return results.flat();
     },
 
-    async distill(cluster, settings) {
-      const prompt = distillPrompt(cluster, settings, new Date().toISOString().slice(0, 10));
+    async distill(cluster, settings, asOf) {
+      const prompt = distillPrompt(cluster, settings, asOf.toISOString().slice(0, 10));
       const attempt = async (grounded: boolean) => {
         const res = await call({ prompt, grounded, schema: grounded ? undefined : DISTILL_SCHEMA });
         const distilled = DistilledResponse.parse(extractJson(res.text));
@@ -179,10 +187,16 @@ export function createDigestAI(
           suggestedAngle: "",
           contactHint: "",
           amount: "",
+          trackRecord: "",
           verified: false,
         },
         grounding: [],
       };
+    },
+
+    async draftEmail(lead, settings) {
+      const { text } = await call({ prompt: draftPrompt(lead, settings), schema: DRAFT_SCHEMA, grounded: false });
+      return DraftResponse.parse(extractJson(text));
     },
 
     async summarize(items, settings, weekOf) {

@@ -10,7 +10,7 @@ const splitList = (s: string) =>
     .map((x) => x.trim())
     .filter(Boolean);
 
-const input = "w-full rounded-md border border-line bg-bg px-3 py-2 text-sm";
+const input = "w-full rounded-lg border border-line bg-raised px-3 py-2 text-sm";
 const label = "block text-sm font-medium";
 
 export function SettingsForm({ initial }: { initial: Settings }) {
@@ -24,7 +24,7 @@ export function SettingsForm({ initial }: { initial: Settings }) {
   };
 
   return (
-    <form action={action} className="space-y-8 rounded-lg border border-line bg-surface p-6">
+    <form action={action} className="space-y-8 rounded-2xl border border-line bg-surface p-6 shadow-card">
       <input type="hidden" name="settings" value={JSON.stringify(payload)} />
 
       <fieldset className="space-y-3">
@@ -49,13 +49,13 @@ export function SettingsForm({ initial }: { initial: Settings }) {
               onChange={(e) => setS({ ...s, sectors: s.sectors.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) })} />
             <input aria-label="Keywords" className={input} value={sectorText[i] ?? ""}
               onChange={(e) => setSectorText(sectorText.map((t, j) => (j === i ? e.target.value : t)))} />
-            <button type="button" className="text-sm text-muted hover:text-danger" disabled={s.sectors.length <= 1}
+            <button type="button" className="text-sm text-muted hover:text-hot" disabled={s.sectors.length <= 1}
               onClick={() => { setS({ ...s, sectors: s.sectors.filter((_, j) => j !== i) }); setSectorText(sectorText.filter((_, j) => j !== i)); }}>
               Remove
             </button>
           </div>
         ))}
-        <button type="button" className="text-sm text-accent" onClick={() => { setS({ ...s, sectors: [...s.sectors, { name: "New sector", keywords: [] }] }); setSectorText([...sectorText, ""]); }}>
+        <button type="button" className="text-sm text-brand" onClick={() => { setS({ ...s, sectors: [...s.sectors, { name: "New sector", keywords: [] }] }); setSectorText([...sectorText, ""]); }}>
           + Add sector
         </button>
       </fieldset>
@@ -73,13 +73,13 @@ export function SettingsForm({ initial }: { initial: Settings }) {
               <option value={2}>Tier 2 · expanding</option>
               <option value={3}>Tier 3 · national</option>
             </select>
-            <button type="button" className="text-sm text-muted hover:text-danger" disabled={s.geographies.length <= 1}
+            <button type="button" className="text-sm text-muted hover:text-hot" disabled={s.geographies.length <= 1}
               onClick={() => setS({ ...s, geographies: s.geographies.filter((_, j) => j !== i) })}>
               Remove
             </button>
           </div>
         ))}
-        <button type="button" className="text-sm text-accent" onClick={() => setS({ ...s, geographies: [...s.geographies, { name: "", tier: 2 }] })}>
+        <button type="button" className="text-sm text-brand" onClick={() => setS({ ...s, geographies: [...s.geographies, { name: "", tier: 2 }] })}>
           + Add place
         </button>
       </fieldset>
@@ -111,11 +111,11 @@ export function SettingsForm({ initial }: { initial: Settings }) {
       </fieldset>
 
       <div className="flex items-center gap-4">
-        <button disabled={pending} className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-60">
+        <button disabled={pending} className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-brand-ink disabled:opacity-60">
           {pending ? "Saving…" : "Save settings"}
         </button>
-        {state.ok && !pending && <span role="status" className="text-sm text-accent">Saved. The next run will use these.</span>}
-        {state.error && <span role="alert" className="text-sm text-danger">{state.error}</span>}
+        {state.ok && !pending && <span role="status" className="text-sm text-brand">Saved. The next run will use these.</span>}
+        {state.error && <span role="alert" className="text-sm text-hot">{state.error}</span>}
       </div>
     </form>
   );

@@ -74,54 +74,54 @@ export function RunPanel({ recipients, recent }: { recipients: string[]; recent:
   const active = run?.status === "running" || (runId && !run);
 
   return (
-    <section className="rounded-lg border border-line bg-surface p-6">
+    <section className="rounded-2xl border border-line bg-surface p-6 shadow-card">
       <h2 className="text-base font-semibold">Run the digest now</h2>
       <p className="mt-1 text-sm text-muted">
         Runs automatically every Monday at 7:30 IST. A manual run takes 1 to 3 minutes and replaces this week&apos;s digest.
       </p>
 
       <div className="mt-4 flex flex-wrap items-center gap-4">
-        <button onClick={start} disabled={busy || !!active} className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white disabled:opacity-60">
+        <button onClick={start} disabled={busy || !!active} className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-brand-ink disabled:opacity-60">
           {active ? "Running…" : "Run digest now"}
         </button>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={sendEmail} onChange={(e) => setSendEmail(e.target.checked)} />
           Email it to {recipients.length ? recipients.join(", ") : "recipients (none set yet)"}
         </label>
-        <button onClick={testEmail} disabled={busy} className="text-sm text-accent underline underline-offset-2 disabled:opacity-60">
+        <button onClick={testEmail} disabled={busy} className="text-sm text-brand underline underline-offset-2 disabled:opacity-60">
           Send latest digest as a test email
         </button>
       </div>
 
       {notice && (
-        <p role="status" className={`mt-3 text-sm ${notice.tone === "error" ? "text-danger" : "text-accent"}`}>{notice.text}</p>
+        <p role="status" className={`mt-3 text-sm ${notice.tone === "error" ? "text-hot" : "text-brand"}`}>{notice.text}</p>
       )}
 
       {run && (
         <div className="mt-5" aria-live="polite">
           <div className="flex justify-between text-sm">
             <span>{run.message}</span>
-            <span className="font-mono text-muted">{run.progress}%</span>
+            <span className="text-muted">{run.progress}%</span>
           </div>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-line">
             <div
-              className={`h-full transition-all ${run.status === "failed" ? "bg-danger" : "bg-accent"}`}
+              className={`h-full transition-all ${run.status === "failed" ? "bg-hot" : "bg-brand"}`}
               style={{ width: `${run.status === "failed" ? 100 : run.progress}%` }}
             />
           </div>
           {run.status === "succeeded" && run.digestId && (
-            <Link href={`/digests/${run.digestId}`} className="mt-3 inline-block text-sm font-medium text-accent">
+            <Link href={`/digests/${run.digestId}`} className="mt-3 inline-block text-sm font-medium text-brand">
               Open the new digest →
             </Link>
           )}
           {run.status === "failed" && (
-            <p className="mt-3 text-sm text-danger">
+            <p className="mt-3 text-sm text-hot">
               The run stopped: {run.error}. Nothing was lost; the previous digest is still live. Check the API keys in Vercel and run again.
             </p>
           )}
           <details className="mt-3 text-xs text-muted">
             <summary className="cursor-pointer">Run log ({run.log.length} steps)</summary>
-            <ol className="mt-2 space-y-0.5 font-mono">
+            <ol className="mt-2 space-y-0.5">
               {run.log.map((l, i) => (
                 <li key={i}>
                   {new Date(l.at).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata" })} {l.step}: {l.message}
@@ -139,7 +139,7 @@ export function RunPanel({ recipients, recent }: { recipients: string[]; recent:
             {recent.map((r) => (
               <li key={r.id}>
                 {new Date(r.startedAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" })} ·{" "}
-                {r.trigger} · <span className={r.status === "failed" ? "text-danger" : ""}>{r.status}</span> · {r.message}
+                {r.trigger} · <span className={r.status === "failed" ? "text-hot" : ""}>{r.status}</span> · {r.message}
               </li>
             ))}
           </ul>

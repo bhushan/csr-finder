@@ -1,81 +1,125 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import { latestDigest } from "@/lib/repo";
+import { groupItems } from "@/lib/digest-view";
 
-export const metadata: Metadata = { title: "How it works · CSR Partnership Radar" };
+export const metadata: Metadata = { title: "How it works" };
+
+async function Funnel() {
+  const row = await latestDigest();
+  if (!row) return null;
+  const c = row.data.coverage;
+  const calls = groupItems(row.data.items).calls.length;
+  const steps = [
+    { n: c.fetched, label: "articles fetched from live feeds" },
+    { n: c.unique, label: "unique stories from the past week" },
+    { n: c.relevant, label: "judged relevant by Gemini" },
+    { n: c.distilled, label: "developments analysed and verified" },
+    { n: calls, label: "worth a call this week" },
+  ];
+  const max = Math.max(steps[0].n, 1);
+  return (
+    <figure className="mt-10 rounded-2xl border border-line bg-surface p-5 shadow-card sm:p-6">
+      <figcaption className="text-[15px] font-semibold">The latest run, from raw news to a call list</figcaption>
+      <ol className="mt-5 space-y-3">
+        {steps.map((s, i) => (
+          <li key={s.label} className="grid grid-cols-[4rem_1fr] items-center gap-4 sm:grid-cols-[4.5rem_1fr_16rem]">
+            <span className="text-right text-[22px] font-semibold tracking-tight">{s.n}</span>
+            <span className="h-2.5 overflow-hidden rounded-full bg-line">
+              <span
+                className={`bar-in block h-full rounded-full ${i === steps.length - 1 ? "bg-hot" : "bg-cold"}`}
+                style={{ width: `${Math.max((s.n / max) * 100, 1.5)}%`, animationDelay: `${i * 90}ms` }}
+              />
+            </span>
+            <span className="col-start-2 text-[13px] text-muted sm:col-start-auto">{s.label}</span>
+          </li>
+        ))}
+      </ol>
+    </figure>
+  );
+}
 
 const stages = [
-  { n: 1, title: "Schedule", body: "Vercel Cron fires every Monday at 07:30 IST. Admins can also run it on demand from Settings.", where: "vercel.ts · /api/cron/weekly · /api/run" },
-  { n: 2, title: "Build searches", body: "Your sectors and geographies become ~20 targeted searches: new initiatives, partner calls, bigger allocations, place-specific and CSR policy.", where: "lib/sources/queries.ts" },
-  { n: 3, title: "Collect live news", body: "Every search runs against Google News and Bing News RSS (India edition, past 7 days). Failed feeds are recorded, not fatal.", where: "lib/sources/feeds.ts" },
-  { n: 4, title: "Clean", body: "Keep only the look-back window, merge duplicate stories across outlets, drop anything already covered in an earlier week.", where: "lib/pipeline/normalize.ts" },
-  { n: 5, title: "Gemini triage", body: "Gemini Flash screens every headline in batches: relevant or not, signal type, company, sectors, geography, and a story key to group coverage.", where: "lib/ai/gemini.ts · prompts.ts" },
-  { n: 6, title: "Group", body: "Articles about the same event are merged into one development; excluded companies are removed.", where: "lib/pipeline/cluster.ts" },
-  { n: 7, title: "Gemini analysis", body: "For each development Gemini Flash cross-checks with Google Search and writes: what happened, why it matters to you, call / watch / skip, warmth, opening angle, who to approach.", where: "lib/ai/gemini.ts" },
-  { n: 8, title: "Rank", body: "A transparent score combines Gemini's warmth with signal type, geography tier and coverage, so ordering is explainable.", where: "lib/pipeline/score.ts" },
-  { n: 9, title: "Summarise, store, deliver", body: "Gemini writes the Monday summary; the digest is saved to Postgres and emailed through Resend, with the full version on this site.", where: "lib/digest-service.ts · lib/email" },
+  { title: "A schedule that matches your week", body: "Vercel Cron starts the run every Monday at 7:30 am IST, before outreach begins. Admins can also run it on demand from Settings and watch it progress.", where: "vercel.ts, app/api/cron/weekly, app/api/run" },
+  { title: "Searches built from your footprint", body: "Each focus sector becomes three searches (new initiatives, partner calls, bigger allocations), plus searches for your priority places and for CSR policy and rule changes.", where: "lib/sources/queries.ts" },
+  { title: "Live news, two sources", body: "Every search runs against Google News and Bing News (India edition, past seven days). A feed that fails is logged and skipped, never fatal.", where: "lib/sources/feeds.ts" },
+  { title: "Cleaning", body: "Old items are dropped, the same story from different outlets is merged, and anything already covered in an earlier briefing is left out.", where: "lib/pipeline/normalize.ts" },
+  { title: "Gemini reads every headline", body: "Gemini Flash screens all stories in batches: is it relevant, which signal is it, which company, sector and place, and which other stories describe the same event.", where: "lib/ai/gemini.ts, lib/ai/prompts.ts" },
+  { title: "One development per event", body: "Coverage of the same announcement is grouped, duplicates by the same company are merged, and companies you excluded are removed.", where: "lib/pipeline/cluster.ts" },
+  { title: "Gemini checks and decides", body: "For each development Gemini Flash searches the web to confirm facts and the company's CSR track record, then writes what happened, why it matters to you, a call, watch or skip decision, a warmth score, an opening line and who to approach.", where: "lib/ai/gemini.ts" },
+  { title: "Explainable ranking", body: "Warmth is combined with signal strength, geography tier and coverage into one score, and companies seen in earlier weeks are flagged as warming up.", where: "lib/pipeline/score.ts, lib/repo.ts" },
+  { title: "Briefing, email and follow-up", body: "Gemini writes the summary, the briefing is saved and emailed, and each lead can be tracked through your pipeline with a drafted first email.", where: "lib/digest-service.ts, lib/email, app/pipeline" },
 ];
 
-const components = [
-  ["Web app", "Next.js App Router on Vercel", "app/, components/"],
-  ["Scheduler", "Vercel Cron (Mon 02:00 UTC)", "vercel.ts, app/api/cron/weekly"],
+const stack = [
+  ["Web app and API", "Next.js on Vercel", "app/, components/"],
+  ["Scheduler", "Vercel Cron, Mondays 02:00 UTC", "vercel.ts"],
   ["News sources", "Google News RSS, Bing News RSS", "lib/sources"],
-  ["AI", "Gemini Flash via @google/genai (structured JSON, Google Search grounding)", "lib/ai"],
-  ["Pipeline", "Pure TypeScript steps, unit tested", "lib/pipeline"],
+  ["AI", "Gemini Flash with structured output and Google Search grounding", "lib/ai"],
+  ["Pipeline", "Plain TypeScript steps with unit tests", "lib/pipeline, tests/"],
   ["Database", "Neon Postgres via Vercel Marketplace, Drizzle ORM", "lib/db, lib/repo.ts"],
-  ["Email", "Resend via Vercel Marketplace", "lib/email"],
-  ["Access", "Admin passcode, HMAC cookie", "lib/admin.ts, app/settings"],
+  ["Email", "Resend", "lib/email"],
+  ["Access", "Admin passcode with a signed cookie", "lib/admin.ts"],
 ];
 
 export default function HowItWorks() {
   return (
     <div>
-      <h1 className="text-2xl font-semibold tracking-tight">How it works</h1>
-      <p className="mt-2 max-w-2xl text-muted">
-        Every Monday the Radar reads the past week of Indian business news, keeps what matters for an education and skilling NGO, and
-        turns each development into one decision: is this worth a call this week?
+      <h1 className="max-w-[24ch] text-[32px] font-semibold leading-tight tracking-[-0.02em] sm:text-[40px]">
+        From a week of news to a short list of calls
+      </h1>
+      <p className="mt-4 max-w-[65ch] text-[16px] leading-relaxed text-ink-2">
+        Most relevant CSR announcements never reach a partnerships team in time. The Radar reads them all every week and keeps only what
+        deserves a conversation, with the evidence attached.
       </p>
 
-      <h2 className="mt-10 text-sm font-semibold uppercase tracking-wider text-accent">Components map</h2>
-      <ol className="mt-4 space-y-3">
-        {stages.map((s) => (
-          <li key={s.n} className="relative rounded-lg border border-line bg-surface p-4 pl-14">
-            <span className="absolute left-4 top-4 flex size-7 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold text-accent">
-              {s.n}
+      <Suspense fallback={<div className="mt-10 h-64 animate-pulse rounded-2xl bg-line" />}>
+        <Funnel />
+      </Suspense>
+
+      <h2 className="mt-16 text-[22px] font-semibold tracking-tight">Components map</h2>
+      <p className="mt-1 text-ink-2">The weekly run, step by step, with where each step lives in the code.</p>
+      <ol className="relative mt-6 space-y-6 border-l border-line pl-8">
+        {stages.map((s, i) => (
+          <li key={s.title} className="relative">
+            <span className="absolute -left-[45px] flex size-7 items-center justify-center rounded-full border border-line bg-surface text-[13px] font-semibold text-ink-2">
+              {i + 1}
             </span>
-            <div className="font-medium">{s.title}</div>
-            <p className="mt-1 text-sm leading-relaxed">{s.body}</p>
-            <p className="mt-1 font-mono text-xs text-muted">{s.where}</p>
+            <h3 className="font-semibold">{s.title}</h3>
+            <p className="mt-1 max-w-[68ch] text-[15px] leading-relaxed text-ink-2">{s.body}</p>
+            <p className="mt-1 text-[13px] text-muted">{s.where}</p>
           </li>
         ))}
       </ol>
 
-      <h2 className="mt-10 text-sm font-semibold uppercase tracking-wider text-accent">Stack</h2>
-      <div className="mt-4 overflow-x-auto rounded-lg border border-line bg-surface">
+      <h2 className="mt-16 text-[22px] font-semibold tracking-tight">Stack</h2>
+      <div className="mt-4 overflow-x-auto rounded-2xl border border-line bg-surface">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-line text-muted">
             <tr>
-              <th className="px-4 py-2 font-medium">Component</th>
-              <th className="px-4 py-2 font-medium">Technology</th>
-              <th className="px-4 py-2 font-medium">Code</th>
+              <th className="px-5 py-3 font-medium">Component</th>
+              <th className="px-5 py-3 font-medium">Technology</th>
+              <th className="px-5 py-3 font-medium">Code</th>
             </tr>
           </thead>
           <tbody>
-            {components.map(([c, t, f]) => (
+            {stack.map(([c, t, f]) => (
               <tr key={c} className="border-b border-line last:border-0">
-                <td className="px-4 py-2 font-medium">{c}</td>
-                <td className="px-4 py-2">{t}</td>
-                <td className="px-4 py-2 font-mono text-xs text-muted">{f}</td>
+                <td className="px-5 py-3 font-medium">{c}</td>
+                <td className="px-5 py-3 text-ink-2">{t}</td>
+                <td className="px-5 py-3 text-muted">{f}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      <h2 className="mt-10 text-sm font-semibold uppercase tracking-wider text-accent">Honesty rules</h2>
-      <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-relaxed">
-        <li>Every item links to the original articles; items cross-checked with Google Search are marked, others say they are headline-only.</li>
-        <li>Gemini is told never to invent amounts, people or deadlines; missing facts are left blank.</li>
-        <li>If Gemini is unavailable, items still appear as &quot;watch&quot; with the headline, rather than silently disappearing.</li>
-        <li>The coverage panel on each digest shows exactly how many articles were scanned, skipped and analysed.</li>
+      <h2 className="mt-16 text-[22px] font-semibold tracking-tight">How the Radar stays honest</h2>
+      <ul className="mt-4 max-w-[68ch] space-y-2.5 text-[15px] leading-relaxed text-ink-2">
+        <li>Every lead links to its original articles, and says whether Gemini confirmed it with a web search or only had the headline.</li>
+        <li>Gemini is instructed never to invent amounts, people or deadlines. Contacts are named only when a source names them.</li>
+        <li>If Gemini is unavailable, a story still appears as a watch item with its headline instead of silently disappearing.</li>
+        <li>Each briefing shows exactly how many articles were read, skipped and analysed.</li>
       </ul>
     </div>
   );

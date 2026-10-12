@@ -1,45 +1,48 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Suspense } from "react";
+import { Schibsted_Grotesk } from "next/font/google";
+import { NavLinks } from "@/components/NavLinks";
+import { RadarMark } from "@/components/RadarMark";
 import "./globals.css";
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+const brand = Schibsted_Grotesk({ variable: "--font-brand", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "CSR Partnership Radar",
-  description: "Weekly AI-curated CSR intelligence for education and skilling NGOs: who to call this week, and why.",
+  metadataBase: new URL(
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000",
+  ),
+  title: { default: "CSR Partnership Radar", template: "%s · CSR Partnership Radar" },
+  description:
+    "A Monday briefing for NGO partnership teams: which companies just moved on education and skilling CSR, and who is worth a call this week.",
 };
-
-const nav = [
-  { href: "/", label: "This week" },
-  { href: "/digests", label: "Archive" },
-  { href: "/how-it-works", label: "How it works" },
-  { href: "/settings", label: "Settings" },
-];
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col font-sans">
-        <header className="border-b border-line bg-surface">
-          <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-3 px-4 py-4">
-            <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-              <span aria-hidden className="inline-block size-2.5 rounded-full bg-accent" />
-              CSR Partnership Radar
+    <html lang="en" className={`${brand.variable} h-full`}>
+      <body className="flex min-h-full flex-col font-sans">
+        <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-50 focus:rounded-md focus:bg-surface focus:px-3 focus:py-2">
+          Skip to content
+        </a>
+        <header className="sticky top-0 z-30 border-b border-line bg-surface/85 backdrop-blur-md">
+          <div className="mx-auto flex h-14 max-w-5xl items-center gap-6 px-4 sm:px-6">
+            <Link href="/" className="flex items-center gap-2.5 text-[15px] font-semibold tracking-tight">
+              <RadarMark animated />
+              <span>CSR Partnership Radar</span>
             </Link>
-            <nav className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted">
-              {nav.map((n) => (
-                <Link key={n.href} href={n.href} className="hover:text-ink">
-                  {n.label}
-                </Link>
-              ))}
-            </nav>
+            <Suspense fallback={<div className="ml-auto" />}>
+              <NavLinks />
+            </Suspense>
           </div>
         </header>
-        <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-8">{children}</main>
-        <footer className="border-t border-line py-6 text-center text-xs text-muted">
-          Live data from Google News and Bing News · Analysis by Gemini Flash · Delivered Mondays 7:30 IST
+        <main id="main" className="mx-auto w-full max-w-5xl flex-1 px-4 pb-20 pt-8 sm:px-6 sm:pt-12">
+          {children}
+        </main>
+        <footer className="border-t border-line">
+          <div className="mx-auto flex max-w-5xl flex-col gap-1 px-4 py-6 text-[13px] text-muted sm:flex-row sm:justify-between sm:px-6">
+            <span>Live news from Google News and Bing News, read by Gemini Flash.</span>
+            <span>New briefing every Monday at 7:30 am IST.</span>
+          </div>
         </footer>
       </body>
     </html>

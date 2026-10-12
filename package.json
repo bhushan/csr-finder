@@ -10,7 +10,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "db:push": "drizzle-kit push",
-    "digest:dry": "tsx --env-file=.env.local scripts/dry-run.ts"
+    "digest:dry": "tsx --env-file=.env.local scripts/dry-run.ts",
+    "backfill": "tsx --env-file=.env.local scripts/backfill.ts"
   },
   "dependencies": {
     "@google/genai": "^2.28.0",

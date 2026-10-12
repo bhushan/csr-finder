@@ -1,12 +1,14 @@
-export function DigestSkeleton() {
+export function BriefingSkeleton() {
   return (
-    <div aria-busy className="animate-pulse space-y-4">
-      <div className="h-3 w-48 rounded bg-line" />
-      <div className="h-8 w-3/4 rounded bg-line" />
-      <div className="h-4 w-full rounded bg-line" />
-      <div className="h-4 w-5/6 rounded bg-line" />
-      <div className="mt-8 h-40 rounded-lg bg-line" />
-      <div className="h-40 rounded-lg bg-line" />
+    <div aria-busy aria-label="Loading briefing" className="animate-pulse">
+      <div className="h-4 w-56 rounded bg-line" />
+      <div className="mt-4 h-10 w-4/5 rounded-lg bg-line" />
+      <div className="mt-2 h-10 w-3/5 rounded-lg bg-line" />
+      <div className="mt-6 space-y-2">
+        <div className="h-4 w-full max-w-2xl rounded bg-line" />
+        <div className="h-4 w-11/12 max-w-2xl rounded bg-line" />
+      </div>
+      <div className="mt-10 h-56 rounded-2xl bg-line" />
     </div>
   );
 }

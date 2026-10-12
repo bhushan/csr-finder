@@ -37,11 +37,13 @@ function fakeAI(): DigestAI {
         suggestedAngle: "z",
         contactHint: "",
         amount: "",
+        trackRecord: "",
         verified: true,
       },
       grounding: [],
     })),
     summarize: vi.fn(async () => ({ headline: "Busy week", bullets: ["a"] })),
+    draftEmail: vi.fn(async () => ({ subject: "s", body: "b" })),
   };
 }
 
@@ -85,6 +87,44 @@ describe("runDigest", () => {
     expect(c.distilled).toBe(2);
     expect(c.relevantBySignal).toEqual({ partner_search: 1, new_initiative: 1 });
     expect(progress).toHaveBeenCalled();
+  });
+
+  it("attaches earlier-week history so repeat companies show as warming up", async () => {
+    const digest = await runDigest({
+      settings: DEFAULT_SETTINGS,
+      now,
+      fetchText: async (url) =>
+        url.includes("bing")
+          ? bingFeed([{ title: "Infosys launches skilling programme", url: "https://mint.com/infosys", date: "Sat, 10 Oct 2026 03:27:00 GMT" }])
+          : "<rss/>",
+      ai: fakeAI(),
+      filterUnseen: async (u) => u,
+      companyHistory: async (keys) => {
+        expect(keys).toEqual(["infosys"]);
+        return { infosys: [{ weekOf: "2026-09-28", headline: "Infosys funds labs", signalType: "new_initiative" }] };
+      },
+    });
+    expect(digest.items[0].companyKey).toBe("infosys");
+    expect(digest.items[0].history).toHaveLength(1);
+  });
+
+  it("backfills a past week from dated Google News searches only", async () => {
+    const urls: string[] = [];
+    const digest = await runDigest({
+      settings: DEFAULT_SETTINGS,
+      now: new Date("2026-09-28T02:00:00Z"),
+      historical: true,
+      fetchText: async (url) => {
+        urls.push(url);
+        return "<rss/>";
+      },
+      ai: fakeAI(),
+      filterUnseen: async (u) => u,
+    });
+    expect(urls.length).toBeGreaterThan(0);
+    expect(urls.every((u) => u.includes("news.google.com") && decodeURIComponent(u).includes("before:2026-09-29"))).toBe(true);
+    expect(digest.weekOf).toBe("2026-09-28");
+    expect(digest.backfilled).toBe(true);
   });
 
   it("produces an empty but valid digest when nothing relevant was found", async () => {

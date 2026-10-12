@@ -74,6 +74,7 @@ describe("distill", () => {
     suggestedAngle: "Lead with our placement numbers.",
     contactHint: "Infosys Foundation CSR team",
     amount: "Rs 20 crore",
+    trackRecord: "Rs 400 crore CSR in FY25, about a third to education.",
   };
 
   it("returns validated output plus grounding links, verified when grounded", async () => {
@@ -82,15 +83,16 @@ describe("distill", () => {
       grounding: [{ title: "infosys.com", url: "https://infosys.com/x" }],
     }));
     const ai = createDigestAI(generate, "gemini-test");
-    const { distilled, grounding } = await ai.distill(cluster, DEFAULT_SETTINGS);
+    const { distilled, grounding } = await ai.distill(cluster, DEFAULT_SETTINGS, new Date("2026-10-12T00:00:00Z"));
     expect(distilled.decision).toBe("call_this_week");
+    expect(distilled.trackRecord).toContain("FY25");
     expect(distilled.verified).toBe(true);
     expect(grounding).toHaveLength(1);
   });
 
   it("counts url-context retrievals as verification", async () => {
     const generate = vi.fn<Generate>(async () => ({ text: JSON.stringify(good), grounding: [{ title: "mint.com", url: "https://mint.com/a" }] }));
-    const { distilled } = await createDigestAI(generate, "gemini-test").distill(cluster, DEFAULT_SETTINGS);
+    const { distilled } = await createDigestAI(generate, "gemini-test").distill(cluster, DEFAULT_SETTINGS, new Date());
     expect(distilled.verified).toBe(true);
   });
 
@@ -100,7 +102,7 @@ describe("distill", () => {
       .mockRejectedValueOnce(new Error("tools unsupported"))
       .mockResolvedValueOnce({ text: JSON.stringify({ ...good, warmth: 140 }), grounding: [] });
     const ai = createDigestAI(generate, "gemini-test", { retries: 0 });
-    const { distilled } = await ai.distill(cluster, DEFAULT_SETTINGS);
+    const { distilled } = await ai.distill(cluster, DEFAULT_SETTINGS, new Date());
     expect(generate).toHaveBeenCalledTimes(2);
     expect(generate.mock.calls[1][0].grounded).toBe(false);
     expect(distilled.warmth).toBe(100);
@@ -112,9 +114,24 @@ describe("distill", () => {
       throw new Error("quota");
     });
     const ai = createDigestAI(generate, "gemini-test", { retries: 0 });
-    const { distilled } = await ai.distill(cluster, DEFAULT_SETTINGS);
+    const { distilled } = await ai.distill(cluster, DEFAULT_SETTINGS, new Date());
     expect(distilled.decision).toBe("watch");
     expect(distilled.verified).toBe(false);
     expect(distilled.headline).toBe("Headline a");
+  });
+});
+
+describe("draftEmail", () => {
+  it("returns a subject and body from the model", async () => {
+    const generate = vi.fn<Generate>(async ({ prompt }) => {
+      expect(prompt).toContain("Wipro");
+      return { text: JSON.stringify({ subject: "Partnering on Pune skilling", body: "Dear team,\n..." }), grounding: [] };
+    });
+    const draft = await createDigestAI(generate, "gemini-test").draftEmail(
+      { company: "Wipro", headline: "Wipro seeks partners", whatHappened: "x", whyItMatters: "y", suggestedAngle: "z", contactHint: "Wipro Foundation", trackRecord: "" },
+      DEFAULT_SETTINGS,
+    );
+    expect(draft.subject).toBe("Partnering on Pune skilling");
+    expect(draft.body).toContain("Dear team");
   });
 });

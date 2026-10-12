@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildQueries } from "@/lib/sources/queries";
-import { bingNewsUrl, googleNewsUrl, parseBingNews, parseGoogleNews } from "@/lib/sources/feeds";
+import { bingNewsUrl, googleNewsRangeUrl, googleNewsUrl, parseBingNews, parseGoogleNews } from "@/lib/sources/feeds";
 import { DEFAULT_SETTINGS } from "@/lib/settings";
 
 const fixture = (name: string) => readFileSync(path.join(__dirname, "fixtures", name), "utf8");
@@ -47,6 +47,11 @@ describe("feed urls", () => {
     expect(url.hostname).toBe("news.google.com");
     expect(url.searchParams.get("q")).toBe("CSR skilling when:7d");
     expect(url.searchParams.get("gl")).toBe("IN");
+  });
+
+  it("builds a dated Google News search for backfilling past weeks", () => {
+    const url = new URL(googleNewsRangeUrl("CSR skilling", new Date("2026-09-28T02:00:00Z"), new Date("2026-10-05T02:00:00Z")));
+    expect(url.searchParams.get("q")).toBe("CSR skilling after:2026-09-27 before:2026-10-06");
   });
 
   it("builds a Bing News RSS url", () => {

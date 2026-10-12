@@ -65,8 +65,12 @@ export type Distilled = {
   suggestedAngle: string;
   contactHint: string;
   amount: string;
+  /** Company's past CSR record as found by search, e.g. "Rs 42 cr CSR in FY25, ~30% education". */
+  trackRecord: string;
   verified: boolean;
 };
+
+export type HistoryEntry = { weekOf: string; headline: string; signalType: SignalType };
 
 export type SourceLink = { title: string; url: string; source: string; publishedAt: string };
 
@@ -80,6 +84,9 @@ export type DigestItem = Distilled & {
   score: number;
   sources: SourceLink[];
   groundingSources: { title: string; url: string }[];
+  companyKey: string;
+  /** Appearances of the same company in earlier digests (newest first). */
+  history: HistoryEntry[];
 };
 
 export type DigestSummary = {
@@ -114,6 +121,8 @@ export type Digest = {
   summary: DigestSummary;
   items: DigestItem[];
   coverage: Coverage;
+  /** Generated after the fact from dated searches, rather than live on the Monday. */
+  backfilled?: boolean;
 };
 
 export type ProgressFn = (step: string, progress: number, message: string) => Promise<void> | void;

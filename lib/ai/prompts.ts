@@ -44,7 +44,7 @@ SIGNAL: ${cluster.signalType}
 REPORTED AS:
 ${cluster.articles.map((a) => `- ${a.title} (${a.source}, ${a.publishedAt.slice(0, 10)}) ${a.url}${a.snippet ? `\n  ${a.snippet.slice(0, 400)}` : ""}`).join("\n")}
 
-If tools are available, search the web to confirm what actually happened and find: the programme name, the CSR amount, where it runs, any implementation-partner call or deadline, and the CSR head / foundation contact named publicly.
+If tools are available, search the web (only use information published on or before TODAY) to confirm what actually happened and find: the programme name, the CSR amount, where it runs, any implementation-partner call or deadline, the CSR head / foundation contact named publicly, and the company's CSR track record (latest reported annual CSR spend and how much of its CSR has gone to education / skilling in recent years).
 
 Then decide for the organisation: is this worth a call THIS WEEK? Timing is everything: a company that has just announced an education or skilling CSR move is actively allocating budget and is warm, even if this particular project already has a partner (pitch the next phase, a new location or a complementary programme).
 - call_this_week: (a) any explicit search for implementation partners / proposals in our sectors; or (b) a fresh education, skilling, digital literacy or youth employment CSR commitment by a company or foundation with operations or programmes in our tier 1 or tier 2 geographies, or a national programme that could expand there; or (c) a clear increase in CSR budget for our sectors.
@@ -62,8 +62,26 @@ Respond with ONLY a JSON object, no prose, with these keys:
   "warmth": 0-100 (how warm this lead is for us right now),
   "suggestedAngle": "one sentence: the opening angle for the outreach call or email",
   "contactHint": "who to approach (named CSR head, foundation, team) or \\"\\" if not stated",
-  "amount": "CSR amount if stated (e.g. \\"Rs 25 crore\\"), else \\"\\""
+  "amount": "CSR amount if stated (e.g. \\"Rs 25 crore\\"), else \\"\\"",
+  "trackRecord": "one short line on the company's CSR history in our sectors, e.g. \\"Rs 42 cr CSR in FY25; education is its largest theme\\" or \\"First education CSR move found in 3 years\\"; \\"\\" if not found"
 }`;
+}
+
+export function draftPrompt(
+  lead: { company: string; headline: string; whatHappened: string; whyItMatters: string; suggestedAngle: string; contactHint: string; trackRecord: string },
+  settings: Settings,
+) {
+  return `${orgBlock(settings)}
+
+Write a first outreach email from our Head of Corporate Partnerships to ${lead.contactHint || `the CSR team at ${lead.company}`}.
+CONTEXT
+- What happened: ${lead.headline}. ${lead.whatHappened}
+- Why it fits us: ${lead.whyItMatters}
+- Opening angle: ${lead.suggestedAngle}
+${lead.trackRecord ? `- Their CSR record: ${lead.trackRecord}` : ""}
+
+Rules: 120-170 words. Reference their announcement specifically in the first line. One concrete line on what we do and for whom. Propose a 20-minute call this week. Warm, plain, no hype, no invented statistics about our NGO (use [placeholders] for numbers we must fill in, e.g. [number of youth placed]). Sign off as "[Your name], Head of Corporate Partnerships, ${settings.orgName}".
+Return JSON: {"subject": "max 9 words", "body": "plain text with line breaks"}.`;
 }
 
 export function summaryPrompt(items: DigestItem[], settings: Settings, weekOf: string) {
@@ -76,6 +94,6 @@ These are the CSR developments found for the week of ${weekOf}, already ranked:
 ${list}
 
 Write the opening of the Monday digest for the Head of Corporate Partnerships.
-Return JSON: {"headline": "one sentence on what this week means for outreach", "bullets": ["3 to 5 bullets: who to call first and why, notable allocation or policy shifts, patterns worth noting"]}.
+Return JSON: {"headline": "one plain sentence, at most 16 words, on what this week means for outreach", "bullets": ["3 to 5 bullets: who to call first and why, notable allocation or policy shifts, patterns worth noting"]}.
 Only refer to companies and facts in the list. Be concrete and brief.`;
 }

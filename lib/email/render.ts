@@ -5,7 +5,7 @@ import { groupItems, SIGNAL_LABEL } from "@/lib/digest-view";
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-const C = { ink: "#1f2421", muted: "#5f6b66", line: "#e4e7e5", accent: "#1d6b52", warm: "#a4561b", bg: "#f7f6f2" };
+const C = { ink: "#131a29", muted: "#6b7486", line: "#e4e7ed", accent: "#3f44d6", warm: "#b8701a", bg: "#f5f6f8" };
 
 function itemHtml(item: DigestItem) {
   const meta = [SIGNAL_LABEL[item.signalType], item.geography, item.amount].filter(Boolean).map(esc).join(" · ");
@@ -20,6 +20,8 @@ function itemHtml(item: DigestItem) {
 <div style="font-size:14px;color:${C.ink};line-height:1.55">${esc(item.whatHappened)}</div>
 <div style="font-size:14px;color:${C.ink};line-height:1.55;margin-top:6px"><strong>Why it matters:</strong> ${esc(item.whyItMatters)}</div>
 ${item.suggestedAngle ? `<div style="font-size:14px;color:${C.ink};line-height:1.55;margin-top:6px"><strong>Opening angle:</strong> ${esc(item.suggestedAngle)}</div>` : ""}
+${item.trackRecord ? `<div style="font-size:13px;color:${C.muted};margin-top:6px">CSR track record: ${esc(item.trackRecord)}</div>` : ""}
+${item.history?.length ? `<div style="font-size:13px;color:${C.warm};margin-top:6px">Warming up: also in ${item.history.length} earlier briefing${item.history.length === 1 ? "" : "s"}</div>` : ""}
 ${item.contactHint ? `<div style="font-size:13px;color:${C.muted};margin-top:6px">Who to approach: ${esc(item.contactHint)}</div>` : ""}
 <div style="font-size:12px;color:${C.muted};margin-top:8px">${item.verified ? "Web-verified · " : "Headline only, not verified · "}${sources}</div>
 </td></tr>`;
